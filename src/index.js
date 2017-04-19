@@ -201,7 +201,7 @@ function update({config, stdout}) {
 	};
 	apigateway.putRestApi(
 		params, (err, data) => {
-			
+
 			if (err) {
 				console.log(err, err.stack);
 				return;
@@ -231,35 +231,60 @@ function update({config, stdout}) {
 								Action:       'lambda:InvokeFunction',
 								FunctionName: projectConfig.name + '_' + name,
 								Principal:    'apigateway.amazonaws.com',
-								StatementId:  MAKE A UUID,
+								StatementId:  'dc776a54bc703c13x622a2t3eq7e2f7z',
 								// EventSourceToken: 'STRING_VALUE',
 								// 	Qualifier: 'STRING_VALUE',
 								// 	SourceAccount: 'STRING_VALUE',
-								SourceArn:    'arn:aws:execute-api:eu-west-2:' + projectConfig['account-id']+':'
+								SourceArn:    'arn:aws:execute-api:eu-west-2:658923860175:'
 											  + projectConfig['x-api-gateway']['rest-api-id']
-											  + '/*/*/'
-											  // + definition['x-api-gateway'].method.toUpperCase()
-											  // + definition['x-api-gateway'].path
+											  + '/*/'
+											  + definition['x-api-gateway'].method.toUpperCase()
+											  + definition['x-api-gateway'].path
 							};
 
-							lambda.addPermission(
-								params, (err, data) => {
+							lambda.getPolicy({FunctionName: params.FunctionName}, (err, data) => {
 
-									if (!!err) {
+								if(!permissionExists(data, params)) {
 
-										console.log(err, err.stack);
-										return;
-									}
+										lambda.addPermission(
+											params, (err, data) => {
 
-									console.log('API successfully granted access to lambda functions!');
+												if (!!err) {
+
+													console.log(err, err.stack);
+													return;
+												}
+
+												console.log('API successfully granted access to lambda functions!');
+											}
+										);
 								}
-							);
+							});
+
 						}
 					)
 				}
 			);
 		}
 	);
+}
+function permissionExists(data, params) {
+
+	let statements = [];
+	
+	if(!!data) {
+		
+		let policy = JSON.parse(data.Policy);
+
+		statements = policy.Statement.filter(
+			(statement) => {
+
+				return statement.Condition.ArnLike['AWS:SourceArn'] === params.SourceArn && statement.Effect == 'Allow';
+			}
+		);
+	}
+
+	return statements.length;
 }
 
 function loadConfig(projectFile = './project.json') {
